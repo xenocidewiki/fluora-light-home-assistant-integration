@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fluora-protocol"
+version = "0.1.0"
+description = "Local protocol client for Fluora / PixelAir lights"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = []
+
+[project.scripts]
+fluora-pa3 = "fluora_protocol.pa3.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["fluora_protocol*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+

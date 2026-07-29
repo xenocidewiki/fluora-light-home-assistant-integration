@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a Fluora / PixelAir light",
+        "description": "Select a discovered light or choose manual setup.",
+        "data": {
+          "device": "Device"
+        }
+      },
+      "manual": {
+        "title": "Connect by IP address",
+        "description": "Enter only the light's IP address. Protocol and identity are detected automatically.",
+        "data": {
+          "host": "IP address"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No compatible Fluora or PixelAir device responded at that address"
+    },
+    "abort": {
+      "already_configured": "This device is already configured"
+    }
+  }
+}

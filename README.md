@@ -1,0 +1,41 @@
+# Fluora / PixelAir local integration
+
+This repository contains a standalone protocol client, evidence, tests, and a
+Home Assistant custom integration for legacy and PA3 firmware.
+
+Read-only diagnostics:
+
+```bash
+python -m fluora_protocol.pa3.cli probe --host DEVICE_IP
+python -m fluora_protocol.pa3.cli state --host DEVICE_IP
+python -m fluora_protocol.pa3.cli observe --host DEVICE_IP --seconds 60
+```
+
+Writes are never enabled implicitly:
+
+```bash
+python -m fluora_protocol.pa3.cli power --host DEVICE_IP --on --allow-write
+python -m fluora_protocol.pa3.cli brightness --host DEVICE_IP --value 0.5 --allow-write
+python -m fluora_protocol.pa3.cli color --host DEVICE_IP --hue 220 --saturation 80 --allow-write
+```
+
+These formats are APK-verified but physical writes remain unverified. Begin
+with one narrowly scoped operation and retain its capture.
+
+Version 0.6 exposes PA3 Auto, scene, and animation effects for physical
+testing. HS color selection automatically enters Manual mode. Home Assistant
+updates successful writes immediately while Observe and polling confirm the
+authoritative device state.
+
+## Home Assistant
+
+Copy `custom_components/fluora_light` into the Home Assistant configuration
+directory, restart, and add “Fluora / PixelAir” in Devices & services. The
+flow discovers both PA3 and legacy devices and presents a device picker. If
+broadcast discovery is unavailable, choose manual setup and enter only the
+device IP; protocol, serial, MAC, nickname, and model are derived automatically.
+
+For migration from the old YAML component, note the IP and serial, remove its
+YAML, restart, and add the device through the config flow. The serial is the
+stable unique ID. PA3 effects are reported but PA3 effect writes remain
+disabled pending verification; legacy effect control remains available.
