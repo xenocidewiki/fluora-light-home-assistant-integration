@@ -37,5 +37,5 @@ device IP; protocol, serial, MAC, nickname, and model are derived automatically.
 
 For migration from the old YAML component, note the IP and serial, remove its
 YAML, restart, and add the device through the config flow. The serial is the
-stable unique ID. PA3 effects are reported but PA3 effect writes remain
-disabled pending verification; legacy effect control remains available.
+stable unique ID. PA3 effect writes are available for physical testing, and
+legacy effect control remains available.
