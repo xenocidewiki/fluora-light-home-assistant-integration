@@ -38,3 +38,14 @@ For migration from the old YAML component, note the IP and serial, remove its
 YAML, restart, and add the device through the config flow. The serial is the
 stable unique ID. PA3 effect writes are available for physical testing, and
 legacy effect control remains available.
+
+### Install with HACS
+
+In HACS, open the menu, choose **Custom repositories**, add:
+
+```text
+https://github.com/xenocidewiki/fluora-light-home-assistant-integration
+```
+
+Select **Integration** as the category, install Fluora / PixelAir, restart
+Home Assistant, then add the integration from **Settings → Devices & services**.

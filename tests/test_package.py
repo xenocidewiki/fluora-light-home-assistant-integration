@@ -8,6 +8,8 @@ def test_custom_component_manifest() -> None:
     manifest = json.loads((root / "manifest.json").read_text())
     assert manifest["domain"] == "fluora_light"
     assert manifest["config_flow"] is True
+    assert manifest["issue_tracker"].endswith("/issues")
+    assert (root / "brand" / "icon.png").is_file()
     for required in ("__init__.py", "config_flow.py", "light.py", "diagnostics.py"):
         assert (root / required).is_file()
 
