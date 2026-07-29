@@ -1,3 +1,6 @@
+# Vibe Coded Disclaimer
+This integration and all the work related to it was all done using AI.
+
 # Fluora / PixelAir local integration
 
 This repository contains a standalone protocol client, evidence, tests, and a
