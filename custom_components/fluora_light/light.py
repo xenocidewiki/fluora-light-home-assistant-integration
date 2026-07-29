@@ -41,8 +41,21 @@ class Pa3Light(CoordinatorEntity[Pa3Coordinator], LightEntity):
         self._attr_name = None
 
     @property
+    def available(self) -> bool:
+        return (
+            self.coordinator.data is not None
+            and self.coordinator.last_update_success
+        )
+
+    @property
     def device_info(self) -> DeviceInfo:
         state = self.coordinator.data
+        if state is None:
+            return DeviceInfo(
+                identifiers={(DOMAIN, self._entry.data["serial"])},
+                name=self._entry.title,
+                manufacturer="Fluora",
+            )
         return DeviceInfo(
             identifiers={(DOMAIN, state.serial)},
             name=state.raw["payload"].get("config", {}).get("nickname", {}).get("v", state.serial),
@@ -53,17 +66,23 @@ class Pa3Light(CoordinatorEntity[Pa3Coordinator], LightEntity):
         )
 
     @property
-    def is_on(self) -> bool:
-        return bool(self.coordinator.data.power.value)
+    def is_on(self) -> bool | None:
+        state = self.coordinator.data
+        return bool(state.power.value) if state is not None else None
 
     @property
-    def brightness(self) -> int:
-        return round(float(self.coordinator.data.brightness.value) * 255)
+    def brightness(self) -> int | None:
+        state = self.coordinator.data
+        return (
+            round(float(state.brightness.value) * 255)
+            if state is not None
+            else None
+        )
 
     @property
     def hs_color(self) -> tuple[float, float] | None:
         state = self.coordinator.data
-        if state.hue is None or state.saturation is None:
+        if state is None or state.hue is None or state.saturation is None:
             return None
         return float(state.hue.value) * 360, float(state.saturation.value) * 100
 
@@ -74,6 +93,8 @@ class Pa3Light(CoordinatorEntity[Pa3Coordinator], LightEntity):
     @property
     def effect_list(self) -> list[str]:
         state = self.coordinator.data
+        if state is None:
+            return []
         return [
             "Auto",
             *(f"Scene: {label}" for label in state.scenes),
@@ -82,7 +103,8 @@ class Pa3Light(CoordinatorEntity[Pa3Coordinator], LightEntity):
 
     @property
     def effect(self) -> str | None:
-        return self.coordinator.data.current_effect
+        state = self.coordinator.data
+        return state.current_effect if state is not None else None
 
     @property
     def supported_features(self) -> LightEntityFeature:
@@ -92,6 +114,8 @@ class Pa3Light(CoordinatorEntity[Pa3Coordinator], LightEntity):
         """Keep HA responsive until Observe or polling confirms the snapshot."""
 
         state = self.coordinator.data
+        if state is None:
+            return
         parameter_changes = {
             key: replace(getattr(state, key), value=value)
             for key, value in changes.items()

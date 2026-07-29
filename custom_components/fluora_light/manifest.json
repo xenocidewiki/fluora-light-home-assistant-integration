@@ -1,7 +1,7 @@
 {
   "domain": "fluora_light",
   "name": "Fluora / PixelAir",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "codeowners": [],
   "config_flow": true,
   "documentation": "https://github.com/xenocidewiki/fluora-light-home-assistant-integration",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,6 +16,8 @@ from .const import CONF_PROTOCOL, PLATFORMS, PROTOCOL_PA3
 from .fluora_protocol.pa3.client import Pa3Client
 from .fluora_protocol.pa3.models import Pa3State
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class Pa3Coordinator(DataUpdateCoordinator[Pa3State]):
     """Poll the global snapshot; Observe support can trigger refreshes."""
@@ -22,7 +25,7 @@ class Pa3Coordinator(DataUpdateCoordinator[Pa3State]):
     def __init__(self, hass: HomeAssistant, client: Pa3Client) -> None:
         super().__init__(
             hass,
-            logger=__import__("logging").getLogger(__name__),
+            logger=_LOGGER,
             name="Fluora PA3",
             update_interval=__import__("datetime").timedelta(seconds=15),
         )
@@ -40,6 +43,7 @@ class RuntimeData:
     coordinator: Pa3Coordinator | None
     client: Any
     observe_task: asyncio.Task[None] | None = None
+    refresh_task: asyncio.Task[None] | None = None
 
 
 FluoraConfigEntry = ConfigEntry[RuntimeData]
@@ -63,22 +67,24 @@ async def _observe_pa3(coordinator: Pa3Coordinator, host: str) -> None:
             observer.close()
 
 
+async def _initial_refresh_pa3(coordinator: Pa3Coordinator) -> None:
+    """Fetch initial state without holding up Home Assistant startup."""
+
+    try:
+        await coordinator.async_refresh()
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        _LOGGER.debug("Initial PA3 refresh failed; background polling will retry", exc_info=True)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: FluoraConfigEntry) -> bool:
     """Set up one device."""
 
     if entry.data[CONF_PROTOCOL] == PROTOCOL_PA3:
         client = Pa3Client(entry.data["host"])
         coordinator = Pa3Coordinator(hass, client)
-        try:
-            await coordinator.async_config_entry_first_refresh()
-        except ConfigEntryNotReady:
-            client.close()
-            raise
         entry.runtime_data = RuntimeData(coordinator, client)
-        entry.runtime_data.observe_task = hass.async_create_task(
-            _observe_pa3(coordinator, entry.data["host"]),
-            f"fluora-pa3-observe-{entry.data['serial']}",
-        )
     else:
         from libpixelair import PixelAirDevice, UDPListener
 
@@ -96,6 +102,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FluoraConfigEntry) -> bo
         entry.runtime_data = RuntimeData(None, (device, listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    if entry.data[CONF_PROTOCOL] == PROTOCOL_PA3:
+        data = entry.runtime_data
+        assert data.coordinator is not None
+        data.refresh_task = hass.async_create_background_task(
+            _initial_refresh_pa3(data.coordinator),
+            f"fluora-pa3-initial-refresh-{entry.data['serial']}",
+        )
+        data.observe_task = hass.async_create_background_task(
+            _observe_pa3(data.coordinator, entry.data["host"]),
+            f"fluora-pa3-observe-{entry.data['serial']}",
+        )
     return True
 
 
@@ -106,8 +123,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: FluoraConfigEntry) -> b
         return False
     data = entry.runtime_data
     if data.coordinator is not None:
-        if data.observe_task is not None:
-            data.observe_task.cancel()
+        tasks = [
+            task
+            for task in (data.observe_task, data.refresh_task)
+            if task is not None
+        ]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         data.client.close()
     else:
         device, listener = data.client

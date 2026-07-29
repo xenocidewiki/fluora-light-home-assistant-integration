@@ -20,6 +20,11 @@ def test_home_assistant_api_and_write_regressions() -> None:
     flow = (root / "config_flow.py").read_text()
     light = (root / "light.py").read_text()
     assert "entry.runtime_data =" in setup
+    assert "async_config_entry_first_refresh" not in setup
+    assert "_initial_refresh_pa3(data.coordinator)" in setup
+    assert setup.count("hass.async_create_background_task(") == 2
+    assert "hass.async_create_task(" not in setup
+    assert "task.cancel()" in setup
     assert 'observer.observe("/deltas")' in setup
     assert "async_forward_entry_setups" in setup
     assert "_attr_supported_color_modes = {ColorMode.HS}" in light
