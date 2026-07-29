@@ -19,8 +19,7 @@ python -m fluora_protocol.pa3.cli brightness --host DEVICE_IP --value 0.5 --allo
 python -m fluora_protocol.pa3.cli color --host DEVICE_IP --hue 220 --saturation 80 --allow-write
 ```
 
-These formats are APK-verified but physical writes remain unverified. Begin
-with one narrowly scoped operation and retain its capture.
+All of this is based off of the APK code on the Android client. I've verified this works at home.
 
 Version 0.6 exposes PA3 Auto, scene, and animation effects for physical
 testing. HS color selection automatically enters Manual mode. Home Assistant
