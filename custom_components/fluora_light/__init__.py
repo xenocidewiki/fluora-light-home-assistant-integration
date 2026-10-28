@@ -86,19 +86,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: FluoraConfigEntry) -> bo
         coordinator = Pa3Coordinator(hass, client)
         entry.runtime_data = RuntimeData(coordinator, client)
     else:
-        from libpixelair import PixelAirDevice, UDPListener
+        from libpixelair import PixelAirDevice, lookup_ip_by_mac
+        from .legacy import acquire_listener, release_listener, request_state
 
-        listener = UDPListener()
-        await listener.start()
-        device = await PixelAirDevice.from_identifiers(
-            mac_address=entry.data.get("mac_address"),
-            serial_number=entry.data["serial"],
-            listener=listener,
-        )
-        if device is None:
-            await listener.stop()
-            raise ConfigEntryNotReady("Legacy PixelAir device was not found")
-        await device.register()
+        listener = await acquire_listener(hass)
+        device = None
+        try:
+            # Stored IP works across VLANs; MAC lookup also handles DHCP changes.
+            host = (
+                await lookup_ip_by_mac(entry.data["mac_address"])
+            ) or entry.data["host"]
+            device = PixelAirDevice(
+                ip_address=host,
+                listener=listener,
+                mac_address=entry.data["mac_address"],
+                serial_number=entry.data["serial"],
+            )
+            await device.register()
+            state = await request_state(device, listener)
+            if (
+                state.serial_number != entry.data["serial"]
+                or str(state.mac_address or "").lower()
+                != entry.data["mac_address"].lower()
+            ):
+                raise ValueError("Device identity at the stored address changed")
+        except BaseException as error:
+            if device is not None:
+                await device.unregister()
+            await release_listener(hass)
+            if isinstance(error, (OSError, RuntimeError, TimeoutError, ValueError)):
+                raise ConfigEntryNotReady(str(error)) from error
+            raise
         entry.runtime_data = RuntimeData(None, (device, listener))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -134,7 +152,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: FluoraConfigEntry) -> b
             await asyncio.gather(*tasks, return_exceptions=True)
         data.client.close()
     else:
+        from .legacy import release_listener
+
         device, listener = data.client
         await device.unregister()
-        await listener.stop()
+        await release_listener(hass)
     return True

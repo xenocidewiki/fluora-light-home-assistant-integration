@@ -80,6 +80,7 @@ class Pa3Client:
         self.max_retransmit = max_retransmit
         self._socket: socket.socket | None = None
         self._seen: set[tuple[str, int, int]] = set()
+        self._exchange_lock = asyncio.Lock()
 
     async def __aenter__(self) -> Pa3Client:
         self._ensure_socket()
@@ -306,6 +307,14 @@ class Pa3Client:
         return await self.get_json_body("/domain", body)
 
     async def _exchange(
+        self, request: CoapMessage, *, timeout: float | None = None
+    ) -> Pa3Response:
+        # Polling and light controls share this connected socket. Concurrent
+        # readers can consume and discard each other's correlated responses.
+        async with self._exchange_lock:
+            return await self._exchange_locked(request, timeout=timeout)
+
+    async def _exchange_locked(
         self, request: CoapMessage, *, timeout: float | None = None
     ) -> Pa3Response:
         loop = asyncio.get_running_loop()
