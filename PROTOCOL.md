@@ -86,7 +86,9 @@ message IDs as required by RFC 7252/7641.
 
 ## PA3 mutations recovered from the APK
 
-No mutation has been sent by this project.
+The formats below were recovered from the APK. The original 3.1.6 capture
+was read-only; subsequent write validation is listed under Additional
+hardware validation below.
 
 The app builds these JSON envelopes with UTF-8 `JSON.stringify` and sends to
 UDP 5683. Its builder does not add a Content-Format option.
@@ -179,3 +181,29 @@ The APK’s mutation builder is narrower than the general codec: it uses a
 two-byte token and short single-segment Uri-Path options. The reusable Python
 codec implements extended options and segmented paths rather than copying
 that limitation.
+
+## Additional hardware validation
+
+The following samples were exercised on physical devices; they do not
+establish compatibility with every animation or firmware version.
+
+- **Monos 2.1.9** (reported as `3/2.1.9`): manual IP setup and state reads
+  worked after sending `/fluoraDiscovery` with the receiver's IPv4 address
+  encoded as ASCII integer arguments. This path returned a fragmented binary
+  snapshot without the JSON discovery response required by the old config
+  flow. Same-value power and brightness writes, HS color, Solid Color,
+  Rainbow, and Focus were exercised and checked against device state.
+- **Fluora Mini and Monos 3.7.3**: state parsing, HS color at 220 degrees and
+  80 percent saturation, Solid Color, Rainbow, and Focus were checked through
+  Home Assistant with direct state readback. The Monos was returned to Auto
+  with its prior power, brightness, palette, and stored selections restored.
+  A short observation window showed no additional restarts; this does not
+  establish long-term uptime or the cause of earlier restarts.
+- **Concurrent CoAP exchanges**: a delayed UDP responder reproduced a lost
+  reply when polling and a service call read the same client socket at once.
+  Both the standalone and HA-bundled clients now serialize exchanges. The
+  regression test requires both concurrent callers to receive their own reply.
+
+Shared legacy-listener lifetime, binary-only probing, send failure, and
+cancellation cleanup are covered by isolated transport tests. Simultaneous
+control of two physical legacy devices has not been verified.

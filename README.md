@@ -37,6 +37,11 @@ flow discovers both PA3 and legacy devices and presents a device picker. If
 broadcast discovery is unavailable, choose manual setup and enter only the
 device IP; protocol, serial, MAC, nickname, and model are derived automatically.
 
+If a Monos running older firmware such as 2.1.9 is not listed by discovery,
+use manual IP setup. The flow can read its binary state response without a
+JSON discovery reply. Legacy devices and setup flows share one UDP receiver
+on port 12345.
+
 For migration from the old YAML component, note the IP and serial, remove its
 YAML, restart, and add the device through the config flow. The serial is the
 stable unique ID. PA3 effect writes are available for physical testing, and

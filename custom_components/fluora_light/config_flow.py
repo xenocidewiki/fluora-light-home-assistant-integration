@@ -36,11 +36,11 @@ class FluoraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovered: dict[str, dict[str, str]] = {}
 
     async def _async_discover_legacy(self) -> list[dict[str, str]]:
-        from libpixelair import DiscoveryService, UDPListener
+        from libpixelair import DiscoveryService
+        from .legacy import acquire_listener, release_listener
 
-        listener = UDPListener()
+        listener = await acquire_listener(self.hass)
         try:
-            await listener.start()
             devices = await DiscoveryService(listener).discover_with_info(
                 timeout=5.0,
                 broadcast_count=3,
@@ -62,7 +62,7 @@ class FluoraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except (OSError, RuntimeError, TimeoutError):
             return []
         finally:
-            await listener.stop()
+            await release_listener(self.hass)
 
     async def _async_discover_all(self) -> None:
         pa3_result, legacy_result = await asyncio.gather(
@@ -160,17 +160,12 @@ class FluoraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             client.close()
 
     async def _async_probe_legacy(self, host: str) -> dict[str, str] | None:
-        from libpixelair import DiscoveryService, UDPListener
+        from .legacy import acquire_listener, probe_device, release_listener
 
-        listener = UDPListener()
+        listener = await acquire_listener(self.hass)
         try:
-            await listener.start()
-            discovery = DiscoveryService(listener)
-            basic = await discovery.verify_device(host, timeout=3.0)
-            if basic is None:
-                return None
-            item = await discovery.get_device_info(basic, timeout=5.0)
-            if not item.mac_address:
+            item = await probe_device(host, listener)
+            if not item.mac_address or not item.serial_number:
                 return None
             return {
                 CONF_HOST: host,
@@ -183,7 +178,7 @@ class FluoraConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except (OSError, RuntimeError, TimeoutError, ValueError):
             return None
         finally:
-            await listener.stop()
+            await release_listener(self.hass)
 
     async def async_step_manual(self, user_input=None) -> ConfigFlowResult:
         """Accept only an IP and derive every identity field."""

@@ -177,14 +177,31 @@ class Pa3Light(CoordinatorEntity[Pa3Coordinator], LightEntity):
 class LegacyLight(LightEntity):
     _attr_supported_color_modes = {ColorMode.HS}
     _attr_supported_features = LightEntityFeature.EFFECT
+    _attr_has_entity_name = True
+    _attr_name = None
 
     def __init__(self, device, entry: FluoraConfigEntry) -> None:
         self._device = device
+        self._entry = entry
+        self._listener = entry.runtime_data.client[1]
         self._attr_unique_id = entry.data["serial"]
-        self._state = None
+        self._state = device.state
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.data["serial"])},
+            name=self._entry.title,
+            manufacturer="Fluora",
+            model=self._state.model,
+            sw_version=self._state.firmware_version,
+            connections={("mac", self._entry.data["mac_address"])},
+        )
 
     async def async_update(self) -> None:
-        self._state = await self._device.get_state()
+        from .legacy import request_state
+
+        self._state = await request_state(self._device, self._listener)
 
     @property
     def is_on(self):
